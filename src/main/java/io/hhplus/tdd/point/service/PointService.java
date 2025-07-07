@@ -1,7 +1,13 @@
-package io.hhplus.tdd.point;
+package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.common.PointValidation;
+import io.hhplus.tdd.point.domain.TransactionType;
+import io.hhplus.tdd.point.common.ApiResponse;
+import io.hhplus.tdd.point.controller.PointController;
+import io.hhplus.tdd.point.domain.PointHistory;
+import io.hhplus.tdd.point.domain.UserPoint;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +19,6 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-import static io.hhplus.tdd.point.common.PointMessages.EXCEED_BALANCE;
-import static io.hhplus.tdd.point.common.PointMessages.INSUFFICIENT_BALANCE;
-
 @Service
 @RequiredArgsConstructor
 public class PointService {
@@ -24,7 +27,7 @@ public class PointService {
 
     private final UserPointTable userPointTable;
     private final PointHistoryTable pointHistoryTable ;
-    private final PointVaildation pointVaildation;
+    private final PointValidation pointVaildation;
 
 
     //포인트 조회
@@ -36,7 +39,8 @@ public class PointService {
     //히스토리 조회
     public List<PointHistory> getHistory(long id) {
         //포인트 충전내역 조회 최신내역순으로 조회
-        return pointHistoryTable.selectAllByUserId(id)
+        List<PointHistory> phlist = pointHistoryTable.selectAllByUserId(id);
+        return phlist
                 .stream()
                 .sorted(Comparator.comparing(PointHistory::updateMillis).reversed())
                 .toList();
@@ -45,19 +49,16 @@ public class PointService {
     //포인트 사용 - 후 히스토리 기록
     @Transactional
     public UserPoint usePoint(long id, long amount) {
-
         // 잔액 차감
         UserPoint userPoint = useNchargePoint(
                 id
                 ,amount
-                ,TransactionType.USE
                 // 검증
                 ,(userPointV0, amt) -> {
                                                         List<PointHistory> phList = pointHistoryTable.selectAllByUserId(id);
                                                         pointVaildation.validUse(phList,amt);
-                                                        if (!userPointV0.okUse(amt)) {
-                                                            throw new IllegalArgumentException(INSUFFICIENT_BALANCE);
-                                                        }}
+                                                        userPointV0.okUse(amt); //잔액부족
+                }
                 ,UserPoint::useAndUpdate //UserPoint에서 객체 새로
         );
 
@@ -73,12 +74,9 @@ public class PointService {
         UserPoint userPoint =useNchargePoint(
                 id
                 ,amount
-                ,TransactionType.CHARGE
                 ,(userPointV0, amt) -> {
                     pointVaildation.validCharge(amt);
-                    if (!userPointV0.maxCharge(amt)) {
-                        throw new IllegalArgumentException(EXCEED_BALANCE);
-                    }
+                    userPointV0.maxCharge(amt); //최대잔고
                 }
                 ,UserPoint::chargeAndUpdate
         );
@@ -91,7 +89,6 @@ public class PointService {
     private UserPoint useNchargePoint(
             long id, //아이디
             long amount, //충전 or 사용 할 포인트
-            TransactionType type, //USE or CHARGE
             BiConsumer<UserPoint, Long> valid, //검증만하기  (up, amt) -> void : 검증
             BiFunction<UserPoint, Long, UserPoint> update//변경만하기  (up, amt) -> UserPoint : 상태 변경 리턴
     ) {
@@ -104,12 +101,9 @@ public class PointService {
         // 포인트 값 변경 UserPoint (useAndUpdate / chargeAndUpdate)
         UserPoint newUserPoint = update.apply(nowUserPoint, amount);
 
-        // 테이블 값 변경하기 (point와 updateMillis 중 point만)
+        // 테이블 값 변경하기 (point만)
         userPointTable.insertOrUpdate(id, newUserPoint.point());
 
-        // 히스토리 저장
-       // pointHistoryTable.insert(id, amount, type, newUserPoint.updateMillis() );
-       // saveHistory(newUserPoint, amount ,type);
         return newUserPoint;
     }
 

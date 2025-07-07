@@ -4,8 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import static io.hhplus.tdd.point.common.PointMessages.SUCCESS_MESSAGE;
-
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,11 +23,7 @@ public class ApiResponse<T> {
 
     //  성공 응답
     public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(true, SUCCESS_MESSAGE, data);
-    }
-
-    public static <T> ApiResponse<T> success(String message, T data) {
-        return new ApiResponse<>(true, message, data);
+        return new ApiResponse<>(true, "성공", data);
     }
 
     //  실패 응답
@@ -37,8 +31,5 @@ public class ApiResponse<T> {
         return new ApiResponse<>(false, message, null, status);
     }
 
-    public static <T> ApiResponse<T> fail(String message) {
-        return fail(400, message);
-    }
 
 }

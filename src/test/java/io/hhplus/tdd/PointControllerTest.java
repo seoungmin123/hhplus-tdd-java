@@ -1,9 +1,13 @@
 // PointControllerTest.java
 package io.hhplus.tdd;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.hhplus.tdd.point.*;
-import io.hhplus.tdd.point.common.PointExceptionHandler;
+import io.hhplus.tdd.point.exception.ApiControllerAdvice;
+import io.hhplus.tdd.point.exception.PointException;
+import io.hhplus.tdd.point.controller.PointController;
+import io.hhplus.tdd.point.domain.PointHistory;
+import io.hhplus.tdd.point.domain.TransactionType;
+import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.service.PointService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +19,13 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static io.hhplus.tdd.point.common.PointMessages.INSUFFICIENT_BALANCE;
+import static io.hhplus.tdd.point.exception.PointErrorCode.ERR_INSUFFICIENT_BALANCE;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@Import(PointExceptionHandler.class)
+@Import(ApiControllerAdvice.class)
 @WebMvcTest(PointController.class)
 class PointControllerTest {
 
@@ -90,7 +94,7 @@ class PointControllerTest {
     @DisplayName("유저 포인트 사용 PATCH /point/{id}/use 실패 응답 (잔액부족)")
     void 유저_포인트_사용_실패() throws Exception {
         // 서비스에사 예외 던지도록 설정
-        doThrow(new IllegalArgumentException(INSUFFICIENT_BALANCE))
+        doThrow(new PointException(ERR_INSUFFICIENT_BALANCE))
                 .when(pointService).usePoint(1L, 100000L);
 
         mockMvc.perform(patch("/point/1/use")
@@ -98,7 +102,7 @@ class PointControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())                  // HTTP 200 유지
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value(INSUFFICIENT_BALANCE))
+                .andExpect(jsonPath("$.message").value(ERR_INSUFFICIENT_BALANCE.message))
                 .andExpect(jsonPath("$.status").value(400));
     }
 }

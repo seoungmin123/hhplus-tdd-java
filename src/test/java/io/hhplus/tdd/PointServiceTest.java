@@ -3,22 +3,21 @@ package io.hhplus.tdd;
 
 import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
-import io.hhplus.tdd.point.*;
+import io.hhplus.tdd.point.common.PointValidation;
+import io.hhplus.tdd.point.domain.PointHistory;
+import io.hhplus.tdd.point.domain.TransactionType;
+import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.exception.PointException;
+import io.hhplus.tdd.point.service.PointService;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
-import static io.hhplus.tdd.point.common.PointMessages.*;
-import static io.hhplus.tdd.point.common.PointMessages.DAILY_USE_LIMIT_EXCEEDED;
-import static io.hhplus.tdd.point.common.PointMessages.EXCEED_MAX_USE;
-import static io.hhplus.tdd.point.common.PointMessages.INVALID_CHARGE_UNIT;
+import static io.hhplus.tdd.point.exception.PointErrorCode.*;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
@@ -34,7 +33,7 @@ public class PointServiceTest {
     void init() {
         UserPointTable userPointTable = new UserPointTable();
         PointHistoryTable historyTable = new PointHistoryTable();
-        PointVaildation validation = new PointVaildation();
+        PointValidation validation = new PointValidation();
         service           = new PointService(userPointTable, historyTable, validation);
         // 공통 세팅: id=1 에 70_000원 충전
         service.useCharge(1L, 70000);
@@ -83,30 +82,30 @@ public class PointServiceTest {
     @Test
     void 잔액부족_예외() {
         assertThatThrownBy(() -> service.usePoint(1L, 70001))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(INSUFFICIENT_BALANCE);
+                .isInstanceOf(PointException.class)
+                .hasMessage(ERR_INSUFFICIENT_BALANCE.message);
     }
 
     @Test
     void 최대_잔고_50만원_예외() {
         assertThatThrownBy(() -> service.useCharge(1L, 40_000_000) )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(EXCEED_BALANCE);
+                .isInstanceOf(PointException.class)
+                .hasMessage(ERR_EXCEED_BALANCE.message);
     }
 
     @Test
     void 충전금액이_0원이하면_예외발생() {
         assertThatThrownBy(() -> service.useCharge(1L, 0))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(BELOW_MINIMUM_CHARGE);
+                .isInstanceOf(PointException.class)
+                .hasMessage(ERR_BELOW_MINIMUM_CHARGE.message);
     }
 
     @ParameterizedTest(name = "{0}원 충전시 5000원단위로 충전가능하다.")
     @ValueSource(longs = {1000,2000,3000})
     void 충전금액이_5000원단위가_아니면_예외발생(long amount) {
         assertThatThrownBy(() -> service.useCharge(1L, amount))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(INVALID_CHARGE_UNIT);
+                .isInstanceOf(PointException.class)
+                .hasMessage(ERR_INVALID_CHARGE_UNIT.message);
     }
 
     @Test
@@ -120,15 +119,15 @@ public class PointServiceTest {
 
         // 3차 사용 (횟수제한 )
         assertThatThrownBy(() -> service.usePoint(id, 300))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining(DAILY_USE_LIMIT_EXCEEDED);
+                .isInstanceOf(PointException.class)
+                .hasMessageContaining(ERR_DAILY_USE_LIMIT_EXCEEDED.message);
     }
 
     @ParameterizedTest(name = "{0}은 최대사용금액 을 넘었습니다.")
     @ValueSource(longs = {1000000,500000})
     void 최대사용금액_100000원_넘으면_예외발생(long amount) {
         assertThatThrownBy(() -> service.usePoint(1L, amount))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage(EXCEED_MAX_USE);
+                .isInstanceOf(PointException.class)
+                .hasMessage(ERR_EXCEED_MAX_USE.message);
     }
 }
