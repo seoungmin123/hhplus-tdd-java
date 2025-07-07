@@ -1,17 +1,12 @@
 package io.hhplus.tdd.point;
 
-import io.hhplus.tdd.database.PointHistoryTable;
-import io.hhplus.tdd.database.UserPointTable;
+import io.hhplus.tdd.point.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Comparator;
+import java.beans.Transient;
 import java.util.List;
 
 @RestController
@@ -28,54 +23,50 @@ public class PointController {
      *특정 유저의 포인트를 조회하는 기능을 작성해주세요.
      */
     @GetMapping("{id}")
-    public UserPoint point(
+    public ApiResponse<UserPoint> point(
             @PathVariable long id
     ) {
-       return pointService.getPoint(id);
+        UserPoint userPoint = pointService.getPoint(id);
+        return ApiResponse.success(userPoint);
     }
 
     /**
      * 특정 유저의 포인트 충전/이용 내역을 조회하는 기능을 작성해주세요.
      */
     @GetMapping("{id}/histories")
-    public List<PointHistory> history(
+    public ApiResponse<List<PointHistory>> history(
             @PathVariable long id
     ) {
-        return pointService.getHistory(id);
+        List<PointHistory> phList = pointService.getHistory(id);
+        return ApiResponse.success(phList);
     }
 
     /**
      * 특정 유저의 포인트를 충전하는 기능을 작성해주세요.
      */
     @PatchMapping("{id}/charge")
-    public UserPoint charge(
+    public ApiResponse<UserPoint> charge(
             @PathVariable long id,
             @RequestBody long amount
     ) {
-
         //충전
-        UserPoint userPoint = pointService.charge(id,amount);
+        UserPoint userPoint = pointService.useCharge(id,amount);
 
-        //충전 기록 남기기 - 충전 그자체금액
-        pointService.saveHistory(userPoint, amount, TransactionType.CHARGE);
-
-        return userPoint;
+        return ApiResponse.success(userPoint);
     }
 
     /**
      * 특정 유저의 포인트를 사용하는 기능을 작성해주세요.
      */
+
     @PatchMapping("{id}/use")
-    public UserPoint use(
+    public ApiResponse<UserPoint> use(
             @PathVariable long id,
             @RequestBody long amount
     ) {
-        //사용
-        UserPoint userPoint = pointService.use(id,amount);
+        //사용하기
+        UserPoint userPoint = pointService.usePoint(id,amount);
 
-        //사용한 기록도 남기기 - 얼마 썻나 저장
-        pointService.saveHistory(userPoint, amount, TransactionType.USE);
-
-        return userPoint;
+        return ApiResponse.success(userPoint);
     }
 }

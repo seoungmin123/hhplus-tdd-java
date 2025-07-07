@@ -1,5 +1,7 @@
 package io.hhplus.tdd.point;
 
+import static io.hhplus.tdd.point.common.PointConstants.MAX_BALANCE;
+
 public record UserPoint(
         long id,
         long point,
@@ -10,20 +12,24 @@ public record UserPoint(
         return new UserPoint(id, 0, System.currentTimeMillis());
     }
 
-    //잔액부족 확인
+    //잔액 부족 확인
     public boolean okUse(long amount) {
         return this.point >= amount; //T
     }
 
-    //최대잔고확인
+    //최대 잔고 확인
     public boolean maxCharge(long amount) {
-        return this.point + amount < 500000; //T
+        return this.point + amount < MAX_BALANCE; //T
     }
 
-    //사용하고 남은 액수
-    public long use(long amount){
-        return this.point - amount;
+    // 포인트 사용시 객체 자체를 새로 생성
+    public UserPoint useAndUpdate(long amount) {
+        return new UserPoint(id, this.point - amount, System.currentTimeMillis());
     }
 
+    // 포인트 충전 후 새 객체 생성 메서드 추가
+    public UserPoint chargeAndUpdate(long amount) {
+        return new UserPoint(id, this.point + amount, System.currentTimeMillis());
+    }
 
 }
