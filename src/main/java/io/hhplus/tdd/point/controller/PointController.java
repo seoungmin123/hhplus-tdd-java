@@ -1,6 +1,6 @@
 package io.hhplus.tdd.point.controller;
 
-import io.hhplus.tdd.point.service.PointService;
+import io.hhplus.tdd.point.service.PointServiceImpl;
 import io.hhplus.tdd.point.common.ApiResponse;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
@@ -18,7 +18,7 @@ public class PointController {
 
     private static final Logger log = LoggerFactory.getLogger(PointController.class);
 
-    private final PointService pointService;
+    private final PointServiceImpl pointServiceImpl;
 
 
     /**
@@ -28,7 +28,7 @@ public class PointController {
     public ApiResponse<UserPoint> point(
             @PathVariable long id
     ) {
-        UserPoint userPoint = pointService.getPoint(id);
+        UserPoint userPoint = pointServiceImpl.getPoint(id);
         return ApiResponse.success(userPoint);
     }
 
@@ -39,7 +39,7 @@ public class PointController {
     public ApiResponse<List<PointHistory>> history(
             @PathVariable long id
     ) {
-        List<PointHistory> phList = pointService.getHistory(id);
+        List<PointHistory> phList = pointServiceImpl.getHistory(id);
         return ApiResponse.success(phList);
     }
 
@@ -52,7 +52,7 @@ public class PointController {
             @RequestBody long amount
     ) {
         //충전
-        UserPoint userPoint = pointService.useCharge(id,amount);
+        UserPoint userPoint = pointServiceImpl.useCharge(id,amount);
 
         return ApiResponse.success(userPoint);
     }
@@ -67,7 +67,7 @@ public class PointController {
             @RequestBody long amount
     ) {
         //사용하기
-        UserPoint userPoint = pointService.usePoint(id,amount);
+        UserPoint userPoint = pointServiceImpl.usePoint(id,amount);
 
         return ApiResponse.success(userPoint);
     }

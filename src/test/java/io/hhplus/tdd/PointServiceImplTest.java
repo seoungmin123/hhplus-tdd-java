@@ -5,10 +5,9 @@ import io.hhplus.tdd.database.PointHistoryTable;
 import io.hhplus.tdd.database.UserPointTable;
 import io.hhplus.tdd.point.common.PointValidation;
 import io.hhplus.tdd.point.domain.PointHistory;
-import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
 import io.hhplus.tdd.point.exception.PointException;
-import io.hhplus.tdd.point.service.PointService;
+import io.hhplus.tdd.point.service.PointServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,49 +16,76 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
+import static io.hhplus.tdd.point.domain.TransactionType.CHARGE;
+import static io.hhplus.tdd.point.domain.TransactionType.USE;
 import static io.hhplus.tdd.point.exception.PointErrorCode.*;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
+/**TODO
+ * 히스토리 정렬확인
+ * 조회시 최초사용자는 포인트 0원
+ * usePoint 통테
+ * useCharge 통테
+ * */
+public class PointServiceImplTest {
 
-public class PointServiceTest {
+    private UserPointTable userPointTable;
+    private PointHistoryTable pointHistoryTable;
+    private PointValidation pointValidation;
+    private PointServiceImpl service;
 
-    private PointService service;
-    /**예외마다 테스트를 진행하는게 맞는지 모르겠습니다.
-     * 에러 메시지 자체도 너무 강경합 테스트라서 옳은 테스트일까요 */
+    private final long USER_ID     = 5L;
+    private final long INIT_POINT  = 70_000L;
+
+    PointHistory older ;
+    PointHistory newer ;
 
     @BeforeEach
     void init() {
-        UserPointTable userPointTable = new UserPointTable();
-        PointHistoryTable historyTable = new PointHistoryTable();
-        PointValidation validation = new PointValidation();
-        service           = new PointService(userPointTable, historyTable, validation);
-        // 공통 세팅: id=1 에 70_000원 충전
-        service.useCharge(1L, 70000);
+        // 의존 객체 직접 생성
+        userPointTable     = new UserPointTable();
+        pointHistoryTable  = new PointHistoryTable();
+        pointValidation    = new PointValidation();
+
+        // 서비스 인스턴스
+        service = new PointServiceImpl(userPointTable, pointHistoryTable, pointValidation);
+
+        // 초기 데이터 세팅
+        userPointTable.insertOrUpdate(USER_ID, INIT_POINT);
+        older = new PointHistory(1, USER_ID, INIT_POINT ,CHARGE , System.currentTimeMillis());
+        newer = new PointHistory(2, USER_ID,100, USE,System.currentTimeMillis());
     }
+
+
+    @ParameterizedTest
+    @ValueSource(longs = {1L,2L})
+    void 최초사용자는_0원(long newId) {
+        //given
+        userPointTable.selectById(newId);
+
+        // when
+        UserPoint actual = service.getPoint(newId);
+
+        // then
+        assertThat(actual.point()).isZero();
+
+    }
+
 
     @Test
-    void 포인트_조회(){
-        UserPoint up = service.getPoint(1L);
-        assertThat(up.point()).isEqualTo(70000);
+    void 히스토리_정렬조회_확인() {
+
+        given(pointHistoryTable.selectAllByUserId(USER_ID)).willReturn(List.of(older, newer));
+
+        List<PointHistory> sort = service.getHistory(USER_ID);
+
+        assertThat(sort).containsExactly(newer, older);
+        then(pointHistoryTable).should().selectAllByUserId(USER_ID);
     }
 
-    //히스토리를 조회하러면 넣어야하는데 그러면 독립적이 아니게되고
-    //그냥 가상데이터를 넣자니 좀 이상한것같아서 어떤게 더 맞는방법인지 질문드립니다.
-    @Test
-    void 히스토리_조회(){
-        service.usePoint(1L,500);
-        service.usePoint(1L,1000);
-        service.useCharge(1L,5000);
-
-        List<PointHistory> phList = service.getHistory(1L);
-
-        assertThat(phList).extracting(ph-> ph.userId(),ph-> ph.amount(), ph ->ph.type())
-                .contains(tuple( 1L, 500L, TransactionType.USE)
-                ,tuple( 1L, 70000L, TransactionType.CHARGE)
-                        ,tuple( 1L, 5000L, TransactionType.CHARGE));
-    }
 
     @ParameterizedTest(name = "{0}원을 사용한다")
     @CsvSource({

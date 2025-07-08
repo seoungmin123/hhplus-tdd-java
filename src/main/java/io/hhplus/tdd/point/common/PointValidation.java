@@ -21,21 +21,6 @@ public class PointValidation {
                 .toEpochMilli();
     }
 
-    //충전 유효성 - 항상양수 , 충전단위 5000
-    public void validCharge(long amount){
-        //항상 양수로 충전
-        if (amount <= 0) {
-            throw new PointException(ERR_BELOW_MINIMUM_CHARGE);//0원 이하 충전 불가
-        }
-
-        //충전단위 5000원
-        if (amount % CHARGE_UNIT != 0) {
-            throw new PointException(ERR_INVALID_CHARGE_UNIT);//충전 금액은 5000원 단위
-        }
-
-
-    }
-
 
     //사용 유효성 -하루 2회사용 , 한번 최대사용금액 100000
     public void validUse(List<PointHistory> phList, long amount){
