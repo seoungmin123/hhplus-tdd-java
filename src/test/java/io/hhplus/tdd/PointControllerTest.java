@@ -7,7 +7,7 @@ import io.hhplus.tdd.point.controller.PointController;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
-import io.hhplus.tdd.point.service.PointServiceImpl;
+import io.hhplus.tdd.point.service.PointService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +34,11 @@ class PointControllerTest {
 
     @Autowired MockMvc mockMvc;
     @MockBean
-    PointServiceImpl pointServiceImpl;
+    PointService pointService;
+
+    //1. 사용시 예외확인하기 (하루2번, 최대사용 10만원이상)
+//충전 , 사용 자체 통합테스트
+// 컨트롤러에서 호출이 잘되는지 (원하는 응답형식으로 리턴되나)
 
     @Test
     @DisplayName("포인트사용시 PathVariable과 RequestBody가 올바른값인지 되는지 검증")
@@ -42,7 +46,7 @@ class PointControllerTest {
         long id = 1L;
         long amount = 250L;
         // 서비스는 아무 UserPoint든 리턴하도록 stub
-        given(pointServiceImpl.usePoint(anyLong(), anyLong()))
+        given(pointService.usePoint(anyLong(), anyLong()))
                 .willReturn(new UserPoint(id, 1000L,System.currentTimeMillis()));
 
         mockMvc.perform(
@@ -53,7 +57,7 @@ class PointControllerTest {
                 .andExpect(status().isOk());
 
         // id와 amount가 정확히 서비스에 전달되었는지 확인
-        then(pointServiceImpl).should(times(1)).usePoint(id, amount);
+        then(pointService).should(times(1)).usePoint(id, amount);
     }
 
     @Test
@@ -63,7 +67,7 @@ class PointControllerTest {
         long 쓴돈 = 300L;
         long 초기돈 = 700L;
         UserPoint dummyResponse = new UserPoint(id, 초기돈,System.currentTimeMillis());
-        given(pointServiceImpl.usePoint(id, 쓴돈))
+        given(pointService.usePoint(id, 쓴돈))
                 .willReturn(dummyResponse);
 
         mockMvc.perform(
@@ -82,7 +86,7 @@ class PointControllerTest {
     void 유저_포인트_조회_성공() throws Exception {
         //stub 행위검증 성공여부
         UserPoint stub = new UserPoint(1, 12345, System.currentTimeMillis());
-        given(pointServiceImpl.getPoint(1L)).willReturn(stub); //mock으로 반환하기
+        given(pointService.getPoint(1L)).willReturn(stub); //mock으로 반환하기
 
         mockMvc.perform(get("/point/1")) //요청
                 .andExpect(status().isOk()) //상대값
@@ -95,7 +99,7 @@ class PointControllerTest {
     void 유저_히스토리_조회() throws Exception {
         PointHistory h1 = new PointHistory(1, 1, 500L, TransactionType.USE, System.currentTimeMillis());
         PointHistory h2 = new PointHistory(2, 1, 2000L, TransactionType.CHARGE, System.currentTimeMillis());
-        given(pointServiceImpl.getHistory(1L)).willReturn(List.of(h1, h2));
+        given(pointService.getHistory(1L)).willReturn(List.of(h1, h2));
 
         mockMvc.perform(get("/point/1/histories"))
                 .andExpect(status().isOk())
@@ -109,7 +113,7 @@ class PointControllerTest {
     @DisplayName("유저 포인트 충전 PATCH /point/{id}/charge 성공 응답")
     void 유저_포인트_충전_성공() throws Exception {
         UserPoint stub = new UserPoint(1, 70000, System.currentTimeMillis());
-        given(pointServiceImpl.useCharge(1L, 5000L)).willReturn(stub);
+        given(pointService.useCharge(1L, 5000L)).willReturn(stub);
 
         mockMvc.perform(patch("/point/1/charge")
                         .content("5000")
@@ -123,7 +127,7 @@ class PointControllerTest {
     @DisplayName("유저 포인트 사용 PATCH /point/{id}/use 성공 응답")
     void 유저_포인트_사용_성공() throws Exception {
         UserPoint stub = new UserPoint(1, 70000, System.currentTimeMillis());
-        given(pointServiceImpl.usePoint(1L, 5000L)).willReturn(stub);
+        given(pointService.usePoint(1L, 5000L)).willReturn(stub);
 
         mockMvc.perform(patch("/point/1/use")
                         .content("5000")
@@ -139,7 +143,7 @@ class PointControllerTest {
     void 유저_포인트_사용_실패() throws Exception {
         // 서비스에사 예외 던지도록 설정
         doThrow(new PointException(ERR_INSUFFICIENT_BALANCE))
-                .when(pointServiceImpl).usePoint(1L, 100000L);
+                .when(pointService).usePoint(1L, 100000L);
 
         mockMvc.perform(patch("/point/1/use")
                         .content("100000")

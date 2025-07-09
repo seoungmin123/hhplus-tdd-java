@@ -1,12 +1,16 @@
 package io.hhplus.tdd.point.controller;
 
-import io.hhplus.tdd.point.service.PointServiceImpl;
+import io.hhplus.tdd.point.dto.PointChargeRequestDto;
+import io.hhplus.tdd.point.dto.PointUseRequestDto;
+import io.hhplus.tdd.point.service.PointService;
 import io.hhplus.tdd.point.common.ApiResponse;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,7 +22,7 @@ public class PointController {
 
     private static final Logger log = LoggerFactory.getLogger(PointController.class);
 
-    private final PointServiceImpl pointServiceImpl;
+    private final PointService pointService;
 
 
     /**
@@ -28,7 +32,7 @@ public class PointController {
     public ApiResponse<UserPoint> point(
             @PathVariable long id
     ) {
-        UserPoint userPoint = pointServiceImpl.getPoint(id);
+        UserPoint userPoint = pointService.getPoint(id);
         return ApiResponse.success(userPoint);
     }
 
@@ -39,7 +43,7 @@ public class PointController {
     public ApiResponse<List<PointHistory>> history(
             @PathVariable long id
     ) {
-        List<PointHistory> phList = pointServiceImpl.getHistory(id);
+        List<PointHistory> phList = pointService.getHistory(id);
         return ApiResponse.success(phList);
     }
 
@@ -47,14 +51,14 @@ public class PointController {
      * 특정 유저의 포인트를 충전하는 기능을 작성해주세요.
      */
     @PatchMapping("{id}/charge")
-    public ApiResponse<UserPoint> charge(
+    public ResponseEntity<ApiResponse<UserPoint>> charge(
             @PathVariable long id,
-            @RequestBody long amount
-    ) {
+            @RequestBody @Validated PointChargeRequestDto pointReqDto
+            ) {
         //충전
-        UserPoint userPoint = pointServiceImpl.useCharge(id,amount);
+        UserPoint userPoint = pointService.useCharge(id,pointReqDto.getPoint());
 
-        return ApiResponse.success(userPoint);
+        return ResponseEntity.ok(ApiResponse.success(userPoint));
     }
 
     /**
@@ -62,13 +66,15 @@ public class PointController {
      */
 
     @PatchMapping("{id}/use")
-    public ApiResponse<UserPoint> use(
+    public ResponseEntity<ApiResponse<UserPoint>> use(
             @PathVariable long id,
-            @RequestBody long amount
-    ) {
-        //사용하기
-        UserPoint userPoint = pointServiceImpl.usePoint(id,amount);
+            @RequestBody @Validated PointUseRequestDto pointReqDto
 
-        return ApiResponse.success(userPoint);
+    ) {
+
+        //사용하기
+        UserPoint userPoint = pointService.usePoint(id,pointReqDto.getPoint());
+
+        return ResponseEntity.ok(ApiResponse.success(userPoint));
     }
 }
