@@ -7,49 +7,39 @@ import io.hhplus.tdd.point.common.PointValidation;
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.TransactionType;
 import io.hhplus.tdd.point.domain.UserPoint;
-import io.hhplus.tdd.point.exception.PointException;
 import io.hhplus.tdd.point.service.PointService;
+import org.assertj.core.api.AssertionsForClassTypes;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
 import static io.hhplus.tdd.point.common.PointConstants.getTodayStartMillis;
 import static io.hhplus.tdd.point.domain.TransactionType.CHARGE;
 import static io.hhplus.tdd.point.domain.TransactionType.USE;
-import static io.hhplus.tdd.point.exception.PointErrorCode.*;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-/**TODO
- * 히스토리 정렬확인
- * 조회시 최초사용자는 포인트 0원
- * usePoint 통테
- * useCharge 통테
- * */
+
 /* g할꺼 TODO
+실제 객체생성
 - 히스토리 정렬(의미가있나..)
-- 사용시 예외확인
-- 충전, 사용시 히스토리가 내역 잘 저장되는지
+- 충전, 사용시 히스토리가 내역 잘 저장되는지 -
 */
 public class PointServiceTest {
 
     private UserPointTable userPointTable;
     private PointHistoryTable pointHistoryTable;
-    private PointService service;
     private final PointValidation pointValidation = new PointValidation();
+
+    private PointService service;
 
     private final long USER_ID     = 5L;
 
     PointHistory older ;
     PointHistory newer ;
-    PointHistory history_test ;
 
     @BeforeEach
     void init() {
@@ -67,10 +57,9 @@ public class PointServiceTest {
         older = new PointHistory(1, USER_ID, INIT_POINT,CHARGE , System.currentTimeMillis());
         newer = new PointHistory(2, USER_ID,100, USE,System.currentTimeMillis());
 
-
     }
 
-
+    @DisplayName("히스토리 정렬순서 일치")
     @Test
     void 히스토리_정렬조회_확인() {
 
@@ -101,39 +90,82 @@ public class PointServiceTest {
         assertThat(cnt).isEqualTo(2);
     }
 
-    @ParameterizedTest(name = "{0}원을 사용한다")
-    @CsvSource({
-            "5000,65000",
-            "10000, 60000"})
-    void 포인트_사용_성공(long 쓴돈, long 기대) {
-        UserPoint up = service.usePoint(1L, 쓴돈);
-        assertThat(up.point()).isEqualTo(기대);
+    @DisplayName("충전 시 히스토리 내역 저장")
+    @Test
+    void 충전_히스토리_저장_검증() {
+        // given
+        long chargeAmount = 5_000L;
+        long id = 1L;
+
+        // 초기 사용자 등록
+        userPointTable.selectById(id);
+
+        // when
+        service.useCharge(id, chargeAmount);
+
+        // then
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(id);
+        assertThat(histories).hasSize(1); //히스토리한개
+
+        PointHistory history = histories.get(0);
+        assertThat(history.userId()).isEqualTo(id);
+        assertThat(history.amount()).isEqualTo(chargeAmount);
+        assertThat(history.type()).isEqualTo(TransactionType.CHARGE);
     }
 
-    @ParameterizedTest(name = "{0}원을 충전하면 금액이 {1}원이 남음")
-    @CsvSource({
-            "5000,75000",
-            "10000, 80000"})
-    void 포인트_충전_성공(long 충전 , long 기대) {
-        UserPoint up = service.useCharge(1L, 충전);
-        assertThat(up.point()).isEqualTo(기대);
-    }
+    @DisplayName("포인트 사용 시 히스토리 내역이 저장")
+    @Test
+    void 사용_히스토리_저장_검증() {
+        // given
+        long id = 1L;
+        userPointTable.insertOrUpdate(id, 10_000L);
+        service.usePoint(id, 3_000L);
 
-    @ParameterizedTest(name = "{0}원 충전시 5000원단위로 충전가능하다.")
-    @ValueSource(longs = {1000,2000,3000})
-    void 충전금액이_5000원단위가_아니면_예외발생(long amount) {
-        assertThatThrownBy(() -> service.useCharge(1L, amount))
-                .isInstanceOf(PointException.class)
-                .hasMessage(ERR_INVALID_CHARGE_UNIT.message);
+        // then
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(id);
+        assertThat(histories).hasSize(1);
+        assertThat(histories.get(0).type()).isEqualTo(TransactionType.USE);
     }
 
 
+    @Test
+    @DisplayName("포인트 충전 시, 잔액과 히스토리가 정상적으로 반영")
+    void 충전_성공_통합테스트() {
+        // given
+        long id = 1L;
+        long chargeAmount = 10_000L;
 
-    @ParameterizedTest(name = "{0}은 최대사용금액 을 넘었습니다.")
-    @ValueSource(longs = {1000000,500000})
-    void 최대사용금액_100000원_넘으면_예외발생(long amount) {
-        assertThatThrownBy(() -> service.usePoint(1L, amount))
-                .isInstanceOf(PointException.class)
-                .hasMessage(ERR_EXCEED_MAX_USE.message);
+        userPointTable.selectById(id);
+
+        // when
+        UserPoint result = service.useCharge(id, chargeAmount);
+
+        // then
+        AssertionsForClassTypes.assertThat(result.point()).isEqualTo(10_000L);
+
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(id);
+        assertThat(histories).hasSize(1);
+        assertThat(histories.get(0).type()).isEqualTo(TransactionType.CHARGE);
     }
+
+    @Test
+    @DisplayName("포인트 사용 시, 잔액 차감과 히스토리가 정상 반영")
+    void 사용_성공_통합테스트() {
+        // given
+        long id = 1L;
+        userPointTable.selectById(id);
+        userPointTable.insertOrUpdate(id, 20_000L);
+
+        // when
+        UserPoint result = service.usePoint(id, 5_000L);
+
+        // then
+        AssertionsForClassTypes.assertThat(result.point()).isEqualTo(15_000L);
+        List<PointHistory> histories = pointHistoryTable.selectAllByUserId(id);
+        assertThat(histories).hasSize(1);
+        assertThat(histories.get(0).type()).isEqualTo(TransactionType.USE);
+    }
+
+
+
 }

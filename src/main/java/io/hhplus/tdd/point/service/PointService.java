@@ -59,9 +59,13 @@ public class PointService  {
         List<PointHistory> history = pointHistoryTable.selectAllByUserId(id);
         long cnt = pointValidation.validUse(history, TransactionType.USE , getTodayStartMillis());
 
+        log.debug("[요청] 포인트 사용 횟수검증 : userId={}, cnt={}", id, cnt);
+
         if(cnt >= MAX_DAILY_USE_COUNT ){ // 0회 사용전 , 첫 사용후, 두번째부터 안되야함
             throw new PointException(ERR_DAILY_USE_LIMIT_EXCEEDED);//하루 2번사용
         }
+
+        log.debug("[요청] 포인트 사용 잔고 확인  : userId={}, point={}", id, now.point());
 
         // 도메인 내부 검증 + 업데이트
         PointErrorCode errorCd = now.useValid(amount);
@@ -72,7 +76,6 @@ public class PointService  {
         // DB 반영 & 이력 저장
         UserPoint updated = userPointTable.insertOrUpdate(id, now.point() - amount);
         saveHistory(updated, amount, TransactionType.USE);
-
         return updated;
     }
 
@@ -82,6 +85,9 @@ public class PointService  {
     public UserPoint useCharge(long id, long amount) {
         //사용자조회
         UserPoint now = userPointTable.selectById(id);
+
+        log.debug("[요청] 포인트 충전 금액 확인  : userId={}, amount={}", id, amount);
+        log.debug("[요청] 포인트 충전 잔고 확인  : userId={}, point={}", id, now.point());
 
         // 도메인 내부 검증 + 업데이트
         PointErrorCode errorCd = now.chargeValid(amount);

@@ -1,10 +1,13 @@
 package io.hhplus.tdd.point.exception;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @RestControllerAdvice
@@ -20,17 +23,21 @@ public class ApiControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     //충전 , 사용 입력값 에러처리
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        String msg = ex.getBindingResult()
-                .getFieldErrors()
-                .stream()
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        String msg = ex.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(err -> err.getDefaultMessage())
                 .orElse("잘못된 입력입니다.");
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse("BAD_REQUEST", msg));
+
+        ErrorResponse body = new ErrorResponse("BAD_REQUEST", msg);
+        // handleExceptionInternal 을 쓰면 headers/status 원본 유지
+        return handleExceptionInternal(ex, body, headers, HttpStatus.BAD_REQUEST, request);
     }
 
 

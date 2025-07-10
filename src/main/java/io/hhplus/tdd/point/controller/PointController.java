@@ -2,6 +2,7 @@ package io.hhplus.tdd.point.controller;
 
 import io.hhplus.tdd.point.dto.PointChargeRequestDto;
 import io.hhplus.tdd.point.dto.PointUseRequestDto;
+import io.hhplus.tdd.point.dto.UserPointResponseDto;
 import io.hhplus.tdd.point.service.PointService;
 import io.hhplus.tdd.point.common.ApiResponse;
 import io.hhplus.tdd.point.domain.PointHistory;
@@ -51,14 +52,15 @@ public class PointController {
      * 특정 유저의 포인트를 충전하는 기능을 작성해주세요.
      */
     @PatchMapping("{id}/charge")
-    public ResponseEntity<ApiResponse<UserPoint>> charge(
+    public ResponseEntity<ApiResponse<UserPointResponseDto>> charge(
             @PathVariable long id,
             @RequestBody @Validated PointChargeRequestDto pointReqDto
             ) {
         //충전
         UserPoint userPoint = pointService.useCharge(id,pointReqDto.getPoint());
 
-        return ResponseEntity.ok(ApiResponse.success(userPoint));
+        UserPointResponseDto responseDto = UserPointResponseDto.from(userPoint);
+        return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
 
     /**
@@ -66,7 +68,7 @@ public class PointController {
      */
 
     @PatchMapping("{id}/use")
-    public ResponseEntity<ApiResponse<UserPoint>> use(
+    public ResponseEntity<ApiResponse<UserPointResponseDto>> use(
             @PathVariable long id,
             @RequestBody @Validated PointUseRequestDto pointReqDto
 
@@ -75,6 +77,7 @@ public class PointController {
         //사용하기
         UserPoint userPoint = pointService.usePoint(id,pointReqDto.getPoint());
 
-        return ResponseEntity.ok(ApiResponse.success(userPoint));
+        UserPointResponseDto responseDto = UserPointResponseDto.from(userPoint);
+        return ResponseEntity.ok(ApiResponse.success(responseDto));
     }
 }
